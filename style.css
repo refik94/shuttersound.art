@@ -1,0 +1,252 @@
+/* =========================================================
+   ShutterSound — style.css
+   Auto-scaling justified gallery (rows fill exactly between
+   the side margins, photos resized to fit, no cropping),
+   plus a lightbox slideshow. Layout math lives in script.js.
+   ========================================================= */
+
+:root{
+  --bg-base:      #0a0a0c;
+  --text-primary: #efeae2;
+  --text-muted:   #9c978d;
+  --accent:       #d8a657;
+  --line:         rgba(239, 234, 226, 0.1);
+  --ease: cubic-bezier(.22,.61,.36,1);
+  --side-space: clamp(16px, 4vw, 64px);   /* space left/right of the gallery */
+}
+
+*, *::before, *::after{ box-sizing: border-box; }
+
+html{ scroll-behavior: smooth; }
+
+body, h1, p, figure{ margin: 0; }
+img{ max-width: none; display: block; }   /* gallery sizes images explicitly via JS */
+a{ color: inherit; text-decoration: none; }
+button{ font: inherit; background: none; border: 0; cursor: pointer; color: inherit; }
+
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+body{
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: "Manrope", -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+
+  background-image:
+    radial-gradient(900px 500px at 85% -10%, rgba(216,166,87,0.10), transparent 60%),
+    radial-gradient(700px 500px at -10% 10%, rgba(216,166,87,0.05), transparent 60%);
+  background-repeat: no-repeat;
+}
+
+:focus-visible{
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ---------- Hero / Logo ---------- */
+.hero{
+  text-align: center;
+  padding: 6rem 1.5rem 4rem;
+  animation: rise 0.9s var(--ease) both;
+}
+
+.logo{
+  font-family: "Fraunces", "Iowan Old Style", serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  font-size: clamp(2.6rem, 9vw, 5.5rem);
+  line-height: 1.05;
+}
+.logo em{
+  font-style: italic;
+  font-weight: 300;
+  background: linear-gradient(120deg, var(--accent), #f0d9ad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.tagline{
+  margin-top: 1rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+@keyframes rise{
+  from{ opacity: 0; transform: translateY(16px); }
+  to{ opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Justified gallery ----------
+   .gallery-wrap holds the side padding; .gallery itself has
+   none, so script.js can measure its exact content width and
+   size each row's photos to fill it precisely.
+*/
+.gallery-wrap{
+  padding-inline: var(--side-space);
+  padding-bottom: 5rem;
+}
+
+.gallery{
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+}
+
+.photo{
+  display: block;
+  overflow: visible;         /* lets the hover pop spill over neighboring rows */
+  position: relative;
+  background: #15141a;
+  cursor: pointer;
+  z-index: 1;
+  border: 1px solid rgba(216, 166, 87, 0.22);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease), border-color 0.4s var(--ease), z-index 0s;
+  /* width & height are set inline by script.js for each photo */
+}
+
+.photo img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.photo:hover{
+  transform: scale(1.18);
+  z-index: 5;
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+    0 0 0 3px rgba(216, 166, 87, 0.18),
+    0 25px 60px -15px rgba(0, 0, 0, 0.8);
+}
+
+/* ---------- Lightbox slideshow ---------- */
+.lightbox{
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 8, 10, 0.55);
+  backdrop-filter: blur(22px) saturate(120%);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+}
+.lightbox.open{
+  display: flex;
+  animation: fade-in 0.3s var(--ease) both;
+}
+
+.lightbox-content{
+  width: 80vw;
+  height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox-content img{
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 30px 80px -20px rgba(0,0,0,0.8);
+  animation: pop-in 0.35s var(--ease) both;
+}
+
+.lightbox-close{
+  position: absolute;
+  top: 1.5rem;
+  right: 1.75rem;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--text-primary);
+  opacity: 0.8;
+  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+}
+.lightbox-close:hover{ opacity: 1; transform: rotate(90deg); }
+
+.lightbox-nav{
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  width: 14%;
+  min-width: 64px;
+  font-size: 2.6rem;
+  color: var(--text-primary);
+  opacity: 0.55;
+  transition: opacity 0.25s var(--ease);
+}
+.lightbox-nav:hover{ opacity: 1; }
+
+.lightbox-prev{ left: 0; justify-content: flex-start; padding-left: 1.5rem; }
+.lightbox-next{ right: 0; justify-content: flex-end; padding-right: 1.5rem; }
+
+@keyframes fade-in{
+  from{ opacity: 0; }
+  to{ opacity: 1; }
+}
+@keyframes pop-in{
+  from{ opacity: 0; transform: scale(0.94); }
+  to{ opacity: 1; transform: scale(1); }
+}
+
+/* ---------- Footer / Contact ---------- */
+.site-footer{
+  text-align: center;
+  padding: 3rem 1.5rem 3.5rem;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.footer-instagram{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: color 0.3s var(--ease);
+}
+.footer-instagram:hover{ color: var(--accent); }
+
+.footer-email{
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  transition: color 0.3s var(--ease);
+}
+.footer-email:hover{ color: var(--accent); }
+
+.footer-copy{
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+@media (max-width: 600px){
+  .hero{ padding: 4.5rem 1.25rem 3rem; }
+  .lightbox-content{ width: 90vw; height: 70vh; }
+  .lightbox-nav{ width: 20%; font-size: 2rem; }
+}

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShutterSound — Photography Portfolio</title>
+  <meta name="description" content="ShutterSound — photography portfolio.">
+  <meta name="theme-color" content="#0a0a0c">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,400&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ================= HERO / LOGO ================= -->
+  <header class="hero" id="top">
+    <h1 class="logo">Shutter<em>Sound</em></h1>
+    <p class="tagline">Photography Portfolio</p>
+  </header>
+
+  <!-- ================= PHOTO GRID =================
+       Built automatically by script.js: it reads each photo's
+       real width/height and arranges full rows so every row is
+       exactly the same width (filling the space between the
+       side margins), with photos scaled to fit — no cropping.
+
+       TO ADD / REMOVE PHOTOS: open script.js and change
+       PHOTO_COUNT to match how many photos you have in /images.
+       Nothing else needs to be touched.
+  -->
+  <div class="gallery-wrap">
+    <main class="gallery" id="gallery"></main>
+  </div>
+
+  <!-- ================= LIGHTBOX SLIDESHOW ================= -->
+  <div class="lightbox" id="lightbox">
+    <button type="button" class="lightbox-nav lightbox-prev" id="lightbox-prev" aria-label="Previous photo">&#8249;</button>
+    <div class="lightbox-content">
+      <img id="lightbox-img" src="" alt="">
+    </div>
+    <button type="button" class="lightbox-nav lightbox-next" id="lightbox-next" aria-label="Next photo">&#8250;</button>
+    <button type="button" class="lightbox-close" id="lightbox-close" aria-label="Close">&times;</button>
+  </div>
+
+  <!-- ================= FOOTER / CONTACT ================= -->
+  <footer class="site-footer">
+    <a class="footer-instagram" href="https://instagram.com/shuttersound.art" target="_blank" rel="noopener noreferrer" aria-label="ShutterSound on Instagram">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="12" cy="12" r="4.3" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor"/>
+      </svg>
+      <span>@shuttersound.art</span>
+    </a>
+
+    <a class="footer-email" href="mailto:hello@shuttersound.art">hello@shuttersound.art</a>
+
+    <p class="footer-copy">© <span>2026</span> ShutterSound</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
