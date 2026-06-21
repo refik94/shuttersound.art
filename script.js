@@ -1,33 +1,27 @@
 /* =========================================================
    ShutterSound — script.js
-   1) Builds a justified photo gallery: measures each photo's
-      real aspect ratio and lays out full rows so every row is
-      exactly the same width, with photos scaled (not cropped)
-      to fit perfectly — like Google Photos / Flickr.
-   2) Powers the click-to-open lightbox slideshow with prev/
-      next, keyboard arrows, Escape to close, and click-outside
-      to close.
+   Full-width justified gallery with no gaps.
+   Each row is built separately and its pixel widths always add
+   up to the exact gallery width. Missing images are removed.
    ========================================================= */
 
 (function () {
   "use strict";
 
   /* ---------------------------------------------------------
-     SETTINGS — the only things you should need to change
+     SETTINGS
      --------------------------------------------------------- */
-  var PHOTO_COUNT = 50;          // how many photos you have in /images
-  var PHOTO_FOLDER = "images";   // folder the photos live in
-  var PHOTO_EXT = "jpg";         // file extension (jpg, jpeg, png, webp...)
+  var PHOTO_COUNT = 50;
+  var PHOTO_FOLDER = "images";
+  var PHOTO_EXT = "jpg";
 
-  // Bigger row height = fewer, bigger photos per row.
-  // At these sizes you'll typically get ~3-6 photos per row
-  // depending on screen width and each photo's own ratio.
-  var TARGET_ROW_HEIGHT = 460;        // ideal row height (desktop) in px
-  var TARGET_ROW_HEIGHT_TABLET = 360;
-  var TARGET_ROW_HEIGHT_MOBILE = 240;
+  // Smaller values put more photos in each row.
+  var TARGET_ROW_HEIGHT = 380;
+  var TARGET_ROW_HEIGHT_TABLET = 250;
+  var TARGET_ROW_HEIGHT_MOBILE = 165;
 
   /* ---------------------------------------------------------
-     Elements
+     Elements and state
      --------------------------------------------------------- */
   var gallery = document.getElementById("gallery");
   var lightbox = document.getElementById("lightbox");
@@ -36,62 +30,80 @@
   var lightboxPrev = document.getElementById("lightbox-prev");
   var lightboxNext = document.getElementById("lightbox-next");
 
-  var photos = [];      // { src, ratio, el }
+  var allPhotos = [];
+  var photos = [];
   var currentIndex = 0;
   var layoutTimer = null;
+  var resizeTimer = null;
 
   /* ---------------------------------------------------------
-     Build thumbnails
+     Build photo elements
      --------------------------------------------------------- */
   function buildGallery() {
     for (var i = 1; i <= PHOTO_COUNT; i++) {
-      (function (index) {
-        var src = PHOTO_FOLDER + "/" + index + "." + PHOTO_EXT;
-
-        var item = document.createElement("a");
-        item.href = "#";
-        item.className = "photo";
-
-        var img = document.createElement("img");
-        img.src = src;
-        img.alt = "Portfolio photo " + index;
-        img.loading = "lazy";
-
-        var record = { src: src, ratio: 1, el: item };
-        photos.push(record);
-
-        function onReady() {
-          if (img.naturalWidth && img.naturalHeight) {
-            record.ratio = img.naturalWidth / img.naturalHeight;
-          }
-          scheduleLayout();
-        }
-
-        if (img.complete && img.naturalWidth) {
-          onReady();
-        } else {
-          img.addEventListener("load", onReady);
-          img.addEventListener("error", scheduleLayout); // keep default ratio, still lays out
-        }
-
-        item.addEventListener("click", function (e) {
-          e.preventDefault();
-          openLightbox(index - 1);
-        });
-
-        item.appendChild(img);
-        gallery.appendChild(item);
-      })(i);
+      createPhoto(i);
     }
+
+    // Put every image into a row immediately. Images that have not
+    // loaded yet temporarily use a square ratio, then the rows update.
+    layoutGallery();
+  }
+
+  function createPhoto(index) {
+    var src = PHOTO_FOLDER + "/" + index + "." + PHOTO_EXT;
+
+    var item = document.createElement("a");
+    item.href = src;
+    item.className = "photo";
+    item.setAttribute("aria-label", "Open portfolio photo " + index);
+
+    var img = document.createElement("img");
+    img.src = src;
+    img.alt = "Portfolio photo " + index;
+    img.decoding = "async";
+    img.loading = index <= 8 ? "eager" : "lazy";
+
+    var record = {
+      index: index,
+      src: src,
+      ratio: 1,
+      failed: false,
+      el: item,
+      img: img
+    };
+
+    allPhotos.push(record);
+
+    img.addEventListener("load", function () {
+      if (img.naturalWidth && img.naturalHeight) {
+        record.ratio = img.naturalWidth / img.naturalHeight;
+      }
+      scheduleLayout();
+    });
+
+    img.addEventListener("error", function () {
+      // A missing number such as images/17.jpg should not leave
+      // an empty box in the gallery.
+      record.failed = true;
+      item.remove();
+      scheduleLayout();
+    });
+
+    item.addEventListener("click", function (event) {
+      event.preventDefault();
+      openLightbox(record);
+    });
+
+    item.appendChild(img);
   }
 
   /* ---------------------------------------------------------
-     Justified row layout
+     Full-width justified layout
      --------------------------------------------------------- */
   function getTargetRowHeight() {
-    var w = window.innerWidth;
-    if (w < 600) return TARGET_ROW_HEIGHT_MOBILE;
-    if (w < 900) return TARGET_ROW_HEIGHT_TABLET;
+    var width = window.innerWidth;
+    if (width <= 600) return TARGET_ROW_HEIGHT_MOBILE;
+    if (width <= 900) return TARGET_ROW_HEIGHT_TABLET;
     return TARGET_ROW_HEIGHT;
   }
 
@@ -99,128 +111,175 @@
     var containerWidth = gallery.clientWidth;
     if (!containerWidth) return;
 
+    photos = allPhotos.filter(function (photo) {
+      return !photo.failed;
+    });
+
+    gallery.replaceChildren();
+
+    if (!photos.length) return;
+
     var targetHeight = getTargetRowHeight();
-    var maxRowHeight = targetHeight * 1.6; // cap so a sparse last row doesn't get huge
+    var maxRowHeight = targetHeight * 1.35;
     var row = [];
     var rowAspectSum = 0;
 
     for (var i = 0; i < photos.length; i++) {
-      var p = photos[i];
-      row.push(p);
-      rowAspectSum += p.ratio;
+      row.push(photos[i]);
+      rowAspectSum += photos[i].ratio;
 
-      var rowWidthAtTarget = rowAspectSum * targetHeight;
-
-      if (rowWidthAtTarget >= containerWidth) {
-        var rowHeight = containerWidth / rowAspectSum;
-        applyRow(row, rowHeight, maxRowHeight, containerWidth);
+      if (rowAspectSum * targetHeight >= containerWidth) {
+        appendRow(row, containerWidth / rowAspectSum, containerWidth);
         row = [];
         rowAspectSum = 0;
       }
     }
 
-    // Final, possibly-incomplete row: justify it too so the grid is
-    // always full-width with no empty gap. If there aren't enough
-    // photos to fill the row at a sensible height, the row height
-    // gets capped and the photos are cropped very slightly (via
-    // object-fit: cover) to still reach the full row width.
+    // The final row is also forced to the exact same width.
+    // Its height is capped so one or two remaining photos do not
+    // become enormous. object-fit: cover handles the small crop.
     if (row.length) {
-      var lastRowHeight = containerWidth / rowAspectSum;
-      applyRow(row, lastRowHeight, maxRowHeight, containerWidth);
+      appendRow(
+        row,
+        Math.min(containerWidth / rowAspectSum, maxRowHeight),
+        containerWidth
+      );
     }
   }
 
-  function applyRow(row, naturalRowHeight, maxRowHeight, containerWidth) {
-    var height = Math.min(naturalRowHeight, maxRowHeight);
+  function appendRow(row, rowHeight, containerWidth) {
+    var rowElement = document.createElement("div");
+    rowElement.className = "gallery-row";
+    rowElement.style.height = Math.max(1, Math.round(rowHeight)) + "px";
 
-    // Widths if each photo kept its true ratio at this (possibly
-    // capped) height — these may not add up to the full container
-    // width once capped, so we scale them up slightly to close the
-    // gap. That extra scale is what creates the gentle crop.
-    var rawWidths = [];
-    var rawTotal = 0;
-    for (var i = 0; i < row.length; i++) {
-      var w = row[i].ratio * height;
-      rawWidths.push(w);
-      rawTotal += w;
+    var aspectSum = 0;
+    var exactWidths = [];
+    var widths = [];
+    var usedWidth = 0;
+    var i;
+
+    for (i = 0; i < row.length; i++) {
+      aspectSum += row[i].ratio;
     }
 
-    var scaleX = containerWidth / rawTotal;
-
-    for (var j = 0; j < row.length; j++) {
-      row[j].el.style.height = height + "px";
-      row[j].el.style.width = rawWidths[j] * scaleX + "px";
+    // First round every width down.
+    for (i = 0; i < row.length; i++) {
+      var exactWidth = (row[i].ratio / aspectSum) * containerWidth;
+      exactWidths.push(exactWidth);
+      widths.push(Math.floor(exactWidth));
+      usedWidth += Math.floor(exactWidth);
     }
+
+    // Give the leftover pixels to the photos with the largest decimal
+    // remainders. The final total is always exactly containerWidth.
+    var pixelsLeft = containerWidth - usedWidth;
+    var remainderOrder = exactWidths
+      .map(function (width, index) {
+        return { index: index, remainder: width - Math.floor(width) };
+      })
+      .sort(function (a, b) {
+        return b.remainder - a.remainder;
+      });
+
+    for (i = 0; i < pixelsLeft; i++) {
+      widths[remainderOrder[i % remainderOrder.length].index] += 1;
+    }
+
+    for (i = 0; i < row.length; i++) {
+      var photo = row[i];
+      var width = widths[i];
+
+      photo.el.style.width = width + "px";
+      photo.el.style.height = "100%";
+      photo.el.style.flex = "0 0 " + width + "px";
+      rowElement.appendChild(photo.el);
+    }
+
+    gallery.appendChild(rowElement);
   }
 
   function scheduleLayout() {
-    // Batch rapid calls (many images loading at once) into one layout pass
     clearTimeout(layoutTimer);
-    layoutTimer = setTimeout(layoutGallery, 50);
+    layoutTimer = setTimeout(layoutGallery, 40);
   }
 
-  var resizeTimer = null;
   window.addEventListener("resize", function () {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(layoutGallery, 150);
+    resizeTimer = setTimeout(layoutGallery, 120);
   });
+
+  // ResizeObserver catches phone rotation and other width changes more
+  // reliably than the window resize event alone.
+  if ("ResizeObserver" in window) {
+    new ResizeObserver(scheduleLayout).observe(gallery);
+  }
 
   /* ---------------------------------------------------------
      Lightbox
      --------------------------------------------------------- */
-  function openLightbox(index) {
-    currentIndex = index;
+  function openLightbox(record) {
+    currentIndex = photos.indexOf(record);
+    if (currentIndex < 0) return;
+
     updateLightboxImage();
     lightbox.classList.add("open");
+    lightbox.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
   }
 
   function closeLightbox() {
     lightbox.classList.remove("open");
+    lightbox.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "";
   }
 
   function updateLightboxImage() {
-    var p = photos[currentIndex];
-    lightboxImg.src = p.src;
-    lightboxImg.alt = "Portfolio photo " + (currentIndex + 1);
+    var photo = photos[currentIndex];
+    if (!photo) return;
+
+    lightboxImg.src = photo.src;
+    lightboxImg.alt = "Portfolio photo " + photo.index;
   }
 
   function showPrev() {
+    if (!photos.length) return;
     currentIndex = (currentIndex - 1 + photos.length) % photos.length;
     updateLightboxImage();
   }
 
   function showNext() {
+    if (!photos.length) return;
     currentIndex = (currentIndex + 1) % photos.length;
     updateLightboxImage();
   }
 
   lightboxClose.addEventListener("click", closeLightbox);
-  lightboxPrev.addEventListener("click", function (e) {
-    e.stopPropagation();
+
+  lightboxPrev.addEventListener("click", function (event) {
+    event.stopPropagation();
     showPrev();
   });
-  lightboxNext.addEventListener("click", function (e) {
-    e.stopPropagation();
+
+  lightboxNext.addEventListener("click", function (event) {
+    event.stopPropagation();
     showNext();
   });
 
-  // Click on the dark backdrop (not the photo) closes the lightbox
-  lightbox.addEventListener("click", function (e) {
-    if (e.target === lightbox) closeLightbox();
+  lightbox.addEventListener("click", function (event) {
+    if (event.target === lightbox) closeLightbox();
   });
 
-  document.addEventListener("keydown", function (e) {
+  document.addEventListener("keydown", function (event) {
     if (!lightbox.classList.contains("open")) return;
-    if (e.key === "Escape") closeLightbox();
-    if (e.key === "ArrowLeft") showPrev();
-    if (e.key === "ArrowRight") showNext();
+    if (event.key === "Escape") closeLightbox();
+    if (event.key === "ArrowLeft") showPrev();
+    if (event.key === "ArrowRight") showNext();
   });
 
   /* ---------------------------------------------------------
      Init
      --------------------------------------------------------- */
+  lightbox.setAttribute("aria-hidden", "true");
   buildGallery();
   window.addEventListener("load", layoutGallery);
 })();
