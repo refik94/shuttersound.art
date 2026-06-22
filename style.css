@@ -102,7 +102,8 @@ button{ font: inherit; background: none; border: 0; cursor: pointer; color: inhe
   width: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
 }
 
 .gallery-row{
@@ -111,7 +112,9 @@ button{ font: inherit; background: none; border: 0; cursor: pointer; color: inhe
   margin: 0;
   padding: 0;
   gap: 0;
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
+  z-index: 0;
 }
 
 .photo{
@@ -127,8 +130,14 @@ button{ font: inherit; background: none; border: 0; cursor: pointer; color: inhe
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  z-index: 0;
   transform: translateZ(0);
-  transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease);
+  transform-origin: center center;
+  will-change: transform;
+  transition:
+    transform 0.38s var(--ease),
+    box-shadow 0.38s var(--ease),
+    filter 0.38s var(--ease);
 }
 
 .photo img{
@@ -140,12 +149,31 @@ button{ font: inherit; background: none; border: 0; cursor: pointer; color: inhe
   transform: translateZ(0);
 }
 
-/* Hover effects only on devices that really have a mouse. */
+/* Hover effects only on devices that really have a mouse.
+   The entire hovered row rises above the rows above and below it,
+   then the selected photo rises above every photo in that row. */
 @media (hover: hover) and (pointer: fine){
+  .gallery-row:hover{
+    z-index: 50;
+  }
+
   .photo:hover{
-    z-index: 5;
-    transform: scale(1.06);
-    box-shadow: 0 22px 55px -18px rgba(0, 0, 0, 0.9);
+    z-index: 1000;
+    transform: scale(1.20) translateZ(0);
+    filter: brightness(1.04) saturate(1.04);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.12),
+      0 10px 28px rgba(0, 0, 0, 0.55),
+      0 34px 90px -18px rgba(0, 0, 0, 0.95);
+  }
+
+  /* Keep edge photos inside the viewport while they grow. */
+  .gallery-row .photo:first-child{
+    transform-origin: left center;
+  }
+
+  .gallery-row .photo:last-child{
+    transform-origin: right center;
   }
 }
 
